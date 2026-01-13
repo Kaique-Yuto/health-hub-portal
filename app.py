@@ -1,9 +1,87 @@
-from flask import Flask, send_from_directory, abort, render_template
+from flask import Flask, send_from_directory, abort, render_template, request, send_file, jsonify, make_response
+from flask_cors import CORS
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from io import BytesIO
+import datetime
 import os
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 static_dir = os.path.join(basedir, 'dist')
 app = Flask(__name__, static_folder=static_dir, static_url_path='')
+CORS(app)
+
+@app.route('/api/generate-prescription-pdf', methods=['POST'])
+def generate_prescription_pdf():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Payload inválido"}), 400
+
+    documentType = data.get('documentType', 'Receita')
+    serviceLocation = data.get('serviceLocation', '')
+    patientName = data.get('patientName', '')
+    patientCPF = data.get('patientCPF', '')
+    medications = data.get('medications', []) or []
+    doctor = data.get('doctor')
+
+    # Generate PDF in-memory using reportlab
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    y = height - 50
+
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(50, y, documentType)
+    y -= 30
+
+    p.setFont("Helvetica", 12)
+    p.drawString(50, y, f"Local de Atendimento: {serviceLocation}")
+    y -= 20
+
+    p.drawString(50, y, f"Paciente: {patientName}   CPF: {patientCPF}")
+    y -= 30
+
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, y, "Medicamentos:")
+    y -= 20
+    p.setFont("Helvetica", 12)
+
+    for med in medications:
+        if y < 80:
+            p.showPage()
+            y = height - 50
+            p.setFont("Helvetica", 12)
+
+        name = med.get('name', '')
+        dosage = med.get('dosage', '')
+        quantity = med.get('quantity', '')
+        administration = med.get('administration', '')
+
+        p.drawString(60, y, f"- {name} | {dosage} | Qtde: {quantity} | Via: {administration}")
+        y -= 18
+
+    if doctor:
+        y -= 20
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(50, y, "Médico:")
+        y -= 20
+        p.setFont("Helvetica", 12)
+        p.drawString(50, y, f"{doctor.get('name', '')} - CRM: {doctor.get('crm', '')}")
+        y -= 18
+        clinic = doctor.get('clinicName') or doctor.get('clinic_name') or ''
+        p.drawString(50, y, f"{doctor.get('specialty', '')} | {clinic}")
+        y -= 18
+
+    p.setFont("Helvetica", 10)
+    p.drawString(50, 30, f"Gerado em {datetime.datetime.utcnow().isoformat()} UTC")
+
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+
+    filename = f"receita_{patientName.replace(' ', '_') if patientName else 'paciente'}.pdf"
+    return send_file(buffer, mimetype='application/pdf', as_attachment=True, download_name=filename)
+
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')

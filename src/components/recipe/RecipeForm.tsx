@@ -150,40 +150,44 @@ export function RecipeForm() {
     try {
       const profile = await fetchDoctorProfile();
 
-      const response = await supabase.functions.invoke("generate-prescription-pdf", {
-        body: {
-          documentType,
-          serviceLocation,
-          patientName,
-          patientCPF: patientCPF.replace(/\D/g, ""),
-          medications: medications.filter((med) => med.name.trim()),
-          doctor: profile
-            ? {
-                name: profile.name,
-                crm: profile.crm,
-                specialty: profile.specialty,
-                clinicName: profile.clinic_name,
-                clinicAddress: profile.clinic_address,
-                phone: profile.phone,
-                email: profile.email,
-              }
-            : null,
+      const payload = {
+        documentType,
+        serviceLocation,
+        patientName,
+        patientCPF: patientCPF.replace(/\D/g, ""),
+        medications: medications.filter((med) => med.name.trim()),
+        doctor: profile
+          ? {
+              name: profile.name,
+              crm: profile.crm,
+              specialty: profile.specialty,
+              clinicName: profile.clinic_name,
+              clinicAddress: profile.clinic_address,
+              phone: profile.phone,
+              email: profile.email,
+            }
+          : null,
+      };
+
+      const response = await fetch("/api/generate-prescription-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify(payload),
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || "Erro ao gerar PDF");
+      if (!response.ok) {
+        // Try to parse JSON error
+        const ct = response.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const err = await response.json();
+          throw new Error(err?.error || err?.message || "Erro ao gerar PDF");
+        }
+        throw new Error("Erro ao gerar PDF");
       }
 
-      // Convert base64 to blob URL
-      const base64 = response.data.pdf;
-      const byteCharacters = atob(base64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: "application/pdf" });
+      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
 
       setPdfUrl(url);
