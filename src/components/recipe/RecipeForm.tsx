@@ -169,24 +169,26 @@ export function RecipeForm() {
           : null,
       };
 
-      const { data: fnData, error: fnError } = await supabase.functions.invoke(
-        "generate-prescription-pdf",
-        { body: payload }
-      );
+      const response = await fetch("/api/generate-prescription-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-      if (fnError) {
-        throw new Error(fnError.message || "Erro ao gerar PDF");
+      if (!response.ok) {
+        const ct = response.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const err = await response.json();
+          throw new Error(err?.error || err?.message || "Erro ao gerar PDF");
+        }
+        throw new Error("Erro ao gerar PDF");
       }
 
-      // The edge function returns HTML as base64
-      const base64Html = fnData.pdf;
-      if (!base64Html) {
-        throw new Error("Nenhum conteúdo de PDF retornado");
-      }
-
-      // Create a data URL for the iframe preview
-      const dataUrl = `data:text/html;base64,${base64Html}`;
-      setPdfUrl(dataUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast({
