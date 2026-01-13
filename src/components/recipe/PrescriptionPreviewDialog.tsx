@@ -31,17 +31,9 @@ export function PrescriptionPreviewDialog({
     }
   };
 
-  // Convert base64 HTML to data URL
+  // pdfUrl is already a data URL from the parent component
   const getDataUrl = () => {
-    if (!pdfUrl) return "";
-    try {
-      // Decode base64 to get HTML content
-      const htmlContent = atob(pdfUrl);
-      // Create a data URL for HTML
-      return `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
-    } catch {
-      return "";
-    }
+    return pdfUrl || "";
   };
 
   return (
