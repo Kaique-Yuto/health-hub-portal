@@ -31,15 +31,14 @@ export function PrescriptionPreviewDialog({
     }
   };
 
-  // pdfUrl is already a data URL from the parent component
   const getDataUrl = () => {
     return pdfUrl || "";
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[85vh] p-0 gap-0">
-        <DialogHeader className="p-4 pb-2 border-b border-border">
+      <DialogContent className="max-w-[95vw] w-full h-[95vh] p-0 gap-0 flex flex-col">
+        <DialogHeader className="p-4 pb-2 border-b border-border shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle>Preview da Receita</DialogTitle>
             <div className="flex items-center gap-2">
@@ -56,7 +55,8 @@ export function PrescriptionPreviewDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden bg-muted p-4">
+        {/* flex-1 garante que esta div ocupe todo o espaço entre header e footer */}
+        <div className="flex-1 overflow-hidden bg-muted p-2 md:p-4">
           {isGenerating ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -68,7 +68,7 @@ export function PrescriptionPreviewDialog({
             <iframe
               ref={iframeRef}
               src={getDataUrl()}
-              className="w-full h-full rounded-lg border border-border bg-card"
+              className="w-full h-full rounded-md border border-border bg-card shadow-sm"
               title="Preview da Receita"
             />
           ) : (
@@ -80,8 +80,8 @@ export function PrescriptionPreviewDialog({
           )}
         </div>
 
-        <div className="p-4 border-t border-border bg-card">
-          <p className="text-sm text-muted-foreground text-center">
+        <div className="p-2 border-t border-border bg-card shrink-0">
+          <p className="text-xs text-muted-foreground text-center">
             💡 Dica: Clique em "Imprimir / Salvar PDF" e selecione "Salvar como PDF" no destino da impressora
           </p>
         </div>
