@@ -75,12 +75,15 @@ def generate_prescription_pdf():
     p.setFont("Helvetica", 10)
     p.drawString(50, 30, f"Gerado em {datetime.datetime.utcnow().isoformat()} UTC")
 
+    # No seu app.py, dentro de generate_prescription_pdf:
     p.showPage()
-    p.save()
+    p.save() # Garante que o PDF foi escrito no buffer
     buffer.seek(0)
 
-    filename = f"receita_{patientName.replace(' ', '_') if patientName else 'paciente'}.pdf"
-    return send_file(buffer, mimetype='application/pdf', as_attachment=True, download_name=filename)
+    response = make_response(buffer.getvalue())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=receita.pdf'
+    return response
 
 
 @app.route('/', defaults={'path': ''})
