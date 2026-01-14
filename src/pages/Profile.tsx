@@ -1,9 +1,66 @@
-import { User, Mail, Phone, MapPin, Building, Edit, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { User, Mail, Phone, MapPin, Building, Edit, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Profile() {
-  const { profile, isLoading } = useAuth();
+  const { profile, isLoading, refreshProfile } = useAuth();
+  const { toast } = useToast();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [clinicName, setClinicName] = useState("");
+  const [clinicAddress, setClinicAddress] = useState("");
+
+  const handleOpenEditDialog = () => {
+    setClinicName(profile?.clinic_name || "");
+    setClinicAddress(profile?.clinic_address || "");
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!profile?.user_id) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          clinic_name: clinicName.trim() || null,
+          clinic_address: clinicAddress.trim() || null,
+        })
+        .eq("user_id", profile.user_id);
+
+      if (error) throw error;
+
+      await refreshProfile();
+      setIsEditDialogOpen(false);
+      toast({
+        title: "Perfil atualizado",
+        description: "Suas informações profissionais foram salvas.",
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível atualizar o perfil. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -33,10 +90,6 @@ export default function Profile() {
               <p className="text-muted-foreground">{profile?.specialty || 'Clínico Geral'}</p>
               <p className="text-sm text-primary font-medium mt-1">CRM: {profile?.crm || '-'}</p>
             </div>
-            <Button variant="outline" className="gap-2">
-              <Edit className="h-4 w-4" />
-              Editar
-            </Button>
           </div>
 
           {/* Contact Info */}
@@ -68,9 +121,15 @@ export default function Profile() {
 
           {/* Professional Info */}
           <div className="pt-6 border-t border-border space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Informações Profissionais
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Informações Profissionais
+              </h3>
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleOpenEditDialog}>
+                <Edit className="h-4 w-4" />
+                Editar
+              </Button>
+            </div>
             <div className="grid gap-4">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
@@ -94,6 +153,47 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Informações Profissionais</DialogTitle>
+            <DialogDescription>
+              Atualize os dados do seu consultório.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="clinic_name">Nome do Consultório</Label>
+              <Input
+                id="clinic_name"
+                placeholder="Ex: Clínica Saúde & Vida"
+                value={clinicName}
+                onChange={(e) => setClinicName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="clinic_address">Endereço</Label>
+              <Input
+                id="clinic_address"
+                placeholder="Ex: Rua das Flores, 123 - Centro"
+                value={clinicAddress}
+                onChange={(e) => setClinicAddress(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSaving}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

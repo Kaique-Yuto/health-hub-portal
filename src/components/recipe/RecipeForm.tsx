@@ -178,7 +178,6 @@ export function RecipeForm() {
       });
 
       if (!response.ok) {
-        // Try to parse JSON error
         const ct = response.headers.get("content-type") || "";
         if (ct.includes("application/json")) {
           const err = await response.json();
@@ -189,7 +188,6 @@ export function RecipeForm() {
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-
       setPdfUrl(url);
     } catch (error) {
       console.error("Error generating PDF:", error);
