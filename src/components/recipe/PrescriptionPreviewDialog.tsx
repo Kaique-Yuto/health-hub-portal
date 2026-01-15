@@ -55,7 +55,6 @@ export function PrescriptionPreviewDialog({
           </div>
         </DialogHeader>
 
-        {/* flex-1 garante que esta div ocupe todo o espaço entre header e footer */}
         <div className="flex-1 overflow-hidden bg-muted p-2 md:p-4">
           {isGenerating ? (
             <div className="flex items-center justify-center h-full">
