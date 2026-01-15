@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { FileText, Eye, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +70,12 @@ function formatCPF(value: string): string {
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
 }
 
+function formatProperCase(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/(?:^|\s)\S/g, (match) => match.toUpperCase());
+}
+
 export function RecipeForm() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -86,6 +92,19 @@ export function RecipeForm() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+  async function loadDefaultLocation() {
+    if (user) {
+      const profile = await fetchDoctorProfile();
+      if (profile?.clinic_address) {
+        setServiceLocation(profile.clinic_address);
+      }
+    }
+  }
+
+  loadDefaultLocation();
+}, [user]); // Dispara quando o objeto user estiver disponível
 
   const handleAddMedication = useCallback(() => {
     setMedications((prev) => [...prev, createEmptyMedication()]);
@@ -357,7 +376,7 @@ export function RecipeForm() {
                 id="patientName"
                 placeholder="Nome completo do paciente"
                 value={patientName}
-                onChange={(e) => setPatientName(e.target.value)}
+                onChange={(e) => setPatientName(formatProperCase(e.target.value))}
               />
             </div>
 

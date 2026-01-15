@@ -18,7 +18,7 @@ export function MedicationsList({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Medicamentos</h3>
+        <h3 className="text-xl font-semibold text-foreground">Medicamentos</h3>
         <Button type="button" variant="outline" size="sm" onClick={onAdd}>
           <Plus className="h-4 w-4 mr-2" />
           Adicionar Medicamento

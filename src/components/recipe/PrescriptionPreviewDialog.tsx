@@ -39,7 +39,7 @@ export function PrescriptionPreviewDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] w-full h-[95vh] p-0 gap-0 flex flex-col">
         <DialogHeader className="p-4 pb-2 border-b border-border shrink-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pr-8">
             <DialogTitle>Preview da Receita</DialogTitle>
             <div className="flex items-center gap-2">
               <Button
