@@ -132,6 +132,10 @@ ALTER TABLE ONLY public.profiles
     ADD CONSTRAINT profiles_user_id_key UNIQUE (user_id);
 
 
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 --
 -- Name: prescriptions update_prescriptions_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
