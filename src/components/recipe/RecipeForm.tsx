@@ -146,16 +146,7 @@ export function RecipeForm() {
       return false;
     }
 
-    if (!patientCPF.trim() || patientCPF.replace(/\D/g, "").length !== 11) {
-      toast({
-        title: "CPF inválido",
-        description: "Por favor, informe um CPF válido.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (!isValidCPF(patientCPF)) {
+    if (patientCPF.trim() !== "" &&!isValidCPF(patientCPF)) {
       toast({
         title: "CPF inválido",
         description: "Por favor, informe um CPF válido.",

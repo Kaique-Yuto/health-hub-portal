@@ -81,7 +81,7 @@ CREATE TABLE public.prescriptions (
     document_type text DEFAULT 'Receita'::text NOT NULL,
     service_location text NOT NULL,
     patient_name text NOT NULL,
-    patient_cpf text NOT NULL,
+    patient_cpf text,
     medications jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
