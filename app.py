@@ -3,7 +3,7 @@ from flask_cors import CORS
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from io import BytesIO
-import datetime
+from datetime import datetime, timedelta, timezone
 import os
 
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -72,8 +72,12 @@ def generate_prescription_pdf():
         p.drawString(50, y, f"{doctor.get('specialty', '')} | {clinic}")
         y -= 18
 
+    
+
+    fuso_brasil = timezone(timedelta(hours=-3))
+    timestamp = datetime.now(fuso_brasil).strftime('%d/%m/%Y %H:%M:%S')
     p.setFont("Helvetica", 10)
-    p.drawString(50, 30, f"Gerado em {datetime.datetime.utcnow().isoformat()} UTC")
+    p.drawString(50, 30, f"Gerado em {timestamp}")
 
     # No seu app.py, dentro de generate_prescription_pdf:
     p.showPage()
