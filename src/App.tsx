@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import Index from "./pages/Index";
+import RootPage from "./pages/RootPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import GenerateRecipe from "./pages/GenerateRecipe";
@@ -26,7 +26,7 @@ const App = () => (
           <MainLayout>
             <Routes>
               {/* Public routes */}
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<RootPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/cadastro" element={<Register />} />
 
