@@ -1,15 +1,8 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { FileText, Eye, Save, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MedicationsList } from "./MedicationsList";
 import { PrescriptionPreviewDialog } from "./PrescriptionPreviewDialog";
@@ -47,13 +40,12 @@ function formatProperCase(name: string): string {
 }
 
 export function RecipeForm() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
 
   const [serviceLocation, setServiceLocation] = useState("");
   const [patientName, setPatientName] = useState("");
   const [patientCPF, setPatientCPF] = useState("");
-  const [patientEmail, setPatientEmail] = useState("");
   const [medications, setMedications] = useState<Medication[]>([{ id: crypto.randomUUID(), name: "", dosage: "", quantity: "", administration: "" }]);
 
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -62,43 +54,59 @@ export function RecipeForm() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    async function loadDefaultLocation() {
-      if (user) {
-        const profile = await fetchDoctorProfile();
-        if (profile?.endereco) setServiceLocation(profile.endereco);
-      }
+    if (profile?.clinic_address) {
+      setServiceLocation(profile.clinic_address);
     }
-    loadDefaultLocation();
-  }, [user]);
-
-  const fetchDoctorProfile = async () => {
-    if (!user) return null;
-    const { data, error } = await supabase.from("medicos").select("*").eq("user_id", user.id).single();
-    if (error) return null;
-    return data;
-  };
+  }, [profile]);
 
   const handleSaveAndDownload = async () => {
-    if (!user || !patientName || !patientCPF) return;
+    if (!user || !patientName || !patientCPF) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha o nome e CPF do paciente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isValidCPF(patientCPF)) {
+      toast({
+        title: "CPF inválido",
+        description: "Por favor, insira um CPF válido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validMedications = medications.filter(m => m.name.trim());
+    if (validMedications.length === 0) {
+      toast({
+        title: "Medicamentos obrigatórios",
+        description: "Adicione pelo menos um medicamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
 
     try {
-      const doctor = await fetchDoctorProfile();
-      if (!doctor) throw new Error("Perfil médico não encontrado.");
+      // Salvar na tabela prescriptions
+      const { error: insertError } = await supabase.from("prescriptions").insert([{
+        user_id: user.id,
+        patient_name: patientName,
+        patient_cpf: patientCPF.replace(/\D/g, ""),
+        service_location: serviceLocation,
+        medications: validMedications as unknown as any,
+        document_type: "Receita Simples"
+      }]);
 
-      // RPC recomendada para lidar com a criptografia do CPF e as duas tabelas em uma transação
-      const { data: result, error: rpcError } = await supabase.rpc("salvar_prescricao_completa", {
-        p_medico_id: doctor.id,
-        p_paciente_nome: patientName,
-        p_paciente_cpf: patientCPF.replace(/\D/g, ""),
-        p_paciente_email: patientEmail,
-        p_conteudo: medications.filter(m => m.name.trim()),
-        p_local: serviceLocation
-      });
+      if (insertError) throw insertError;
 
-      if (rpcError) throw rpcError;
-
-      if (!pdfUrl) await generatePDF();
+      // Gerar PDF se ainda não foi gerado
+      if (!pdfUrl) {
+        await generatePDF();
+      }
 
       if (pdfUrl) {
         const link = document.createElement("a");
@@ -107,12 +115,16 @@ export function RecipeForm() {
         link.click();
       }
 
-      toast({ title: "Sucesso", description: "Receita salva e pronta para download." });
+      toast({ title: "Sucesso", description: "Receita salva com sucesso!" });
+      
+      // Limpar formulário
       setPatientName("");
       setPatientCPF("");
       setMedications([{ id: crypto.randomUUID(), name: "", dosage: "", quantity: "", administration: "" }]);
+      setPdfUrl(null);
     } catch (error: any) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      console.error("Error saving prescription:", error);
+      toast({ title: "Erro", description: error.message || "Erro ao salvar receita.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -122,18 +134,17 @@ export function RecipeForm() {
     setIsGenerating(true);
     setPreviewOpen(true);
     try {
-      const profile = await fetchDoctorProfile();
       const payload = {
         patientName,
         patientCPF: patientCPF.replace(/\D/g, ""),
         medications: medications.filter(m => m.name.trim()),
         doctor: profile ? {
-          name: profile.nome,
+          name: profile.name,
           crm: profile.crm,
-          specialty: profile.especialidade,
-          clinicName: profile.nome_clinica,
-          clinicAddress: profile.endereco,
-          phone: profile.telefone,
+          specialty: profile.specialty,
+          clinicName: profile.clinic_name,
+          clinicAddress: profile.clinic_address,
+          phone: profile.phone,
           email: profile.email
         } : null
       };
@@ -144,9 +155,19 @@ export function RecipeForm() {
         body: JSON.stringify(payload)
       });
 
+      if (!response.ok) {
+        throw new Error("Erro ao gerar PDF");
+      }
+
       const blob = await response.blob();
       setPdfUrl(URL.createObjectURL(blob));
     } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível gerar o PDF. A funcionalidade de preview ainda está em desenvolvimento.",
+        variant: "destructive",
+      });
       setPreviewOpen(false);
     } finally {
       setIsGenerating(false);
@@ -166,17 +187,33 @@ export function RecipeForm() {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="serviceLocation">Local de Atendimento</Label>
-            <Input id="serviceLocation" value={serviceLocation} onChange={(e) => setServiceLocation(e.target.value)} />
+            <Input 
+              id="serviceLocation" 
+              placeholder="Ex: Clínica Saúde - Rua das Flores, 123"
+              value={serviceLocation} 
+              onChange={(e) => setServiceLocation(e.target.value)} 
+            />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="patientName">Nome do Paciente</Label>
-              <Input id="patientName" value={patientName} onChange={(e) => setPatientName(formatProperCase(e.target.value))} />
+              <Label htmlFor="patientName">Nome do Paciente *</Label>
+              <Input 
+                id="patientName" 
+                placeholder="Nome completo do paciente"
+                value={patientName} 
+                onChange={(e) => setPatientName(formatProperCase(e.target.value))} 
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="patientCPF">CPF do Paciente</Label>
-              <Input id="patientCPF" value={patientCPF} onChange={(e) => setPatientCPF(formatCPF(e.target.value))} maxLength={14} />
+              <Label htmlFor="patientCPF">CPF do Paciente *</Label>
+              <Input 
+                id="patientCPF" 
+                placeholder="000.000.000-00"
+                value={patientCPF} 
+                onChange={(e) => setPatientCPF(formatCPF(e.target.value))} 
+                maxLength={14} 
+              />
             </div>
           </div>
 
@@ -188,20 +225,26 @@ export function RecipeForm() {
           />
 
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
-            <Button variant="outline" onClick={generatePDF} disabled={isGenerating} className="flex-1">
+            <Button variant="outline" onClick={generatePDF} disabled={isGenerating || !patientName} className="flex-1">
               {isGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Eye className="h-4 w-4 mr-2" />}
               Visualizar Preview
             </Button>
 
             <Button onClick={handleSaveAndDownload} disabled={isSaving || isGenerating} className="flex-1">
               {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Salvar e Baixar PDF
+              Salvar Receita
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <PrescriptionPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} pdfUrl={pdfUrl} isGenerating={isGenerating} onDownload={() => {}} />
+      <PrescriptionPreviewDialog 
+        open={previewOpen} 
+        onOpenChange={setPreviewOpen} 
+        pdfUrl={pdfUrl} 
+        isGenerating={isGenerating} 
+        onDownload={() => {}} 
+      />
     </>
   );
 }

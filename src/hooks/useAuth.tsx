@@ -3,27 +3,28 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// Interface atualizada para o novo schema
-interface Medico {
+// Interface alinhada com a tabela profiles do banco de dados atual
+interface Profile {
   id: string;
   user_id: string;
-  nome: string;
+  name: string;
   email: string;
-  telefone: string | null;
+  phone: string | null;
   crm: string;
-  uf: string;
-  rqe: string | null;
-  especialidade: string | null;
-  nome_clinica: string | null;
-  endereco: string | null;
+  specialty: string | null;
+  clinic_name: string | null;
+  clinic_address: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: Medico | null;
+  profile: Profile | null;
   isLoading: boolean;
-  signUp: (email: string, password: string, metadata: { name: string; phone: string; crm: string; uf: string }) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, metadata: { name: string; phone: string; crm: string }) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -34,22 +35,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Medico | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    // Alterado de "profiles" para "medicos"
     const { data, error } = await supabase
-      .from("medicos")
+      .from("profiles")
       .select("*")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error fetching profile:", error);
       return null;
     }
-    return data as Medico;
+    return data as Profile | null;
   };
 
   const refreshProfile = async () => {
@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (
     email: string, 
     password: string, 
-    metadata: { name: string; phone: string; crm: string; uf: string }
+    metadata: { name: string; phone: string; crm: string }
   ) => {
     const redirectUrl = `${window.location.origin}/`;
     
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: metadata // O gatilho SQL lerá estes dados do raw_user_meta_data
+        data: metadata
       }
     });
 
