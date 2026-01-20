@@ -1,28 +1,29 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-interface Profile {
+// Interface atualizada para o novo schema
+interface Medico {
   id: string;
   user_id: string;
-  name: string;
+  nome: string;
   email: string;
-  phone: string | null;
+  telefone: string | null;
   crm: string;
-  specialty: string | null;
-  clinic_name: string | null;
-  clinic_address: string | null;
-  avatar_url: string | null;
+  uf: string;
+  rqe: string | null;
+  especialidade: string | null;
+  nome_clinica: string | null;
+  endereco: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: Profile | null;
+  profile: Medico | null;
   isLoading: boolean;
-  signUp: (email: string, password: string, metadata: { name: string; phone: string; crm: string }) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, metadata: { name: string; phone: string; crm: string; uf: string }) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -33,12 +34,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Medico | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
+    // Alterado de "profiles" para "medicos"
     const { data, error } = await supabase
-      .from("profiles")
+      .from("medicos")
       .select("*")
       .eq("user_id", userId)
       .single();
@@ -47,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Error fetching profile:", error);
       return null;
     }
-    return data as Profile;
+    return data as Medico;
   };
 
   const refreshProfile = async () => {
@@ -58,13 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Defer profile fetch with setTimeout to prevent deadlock
         if (session?.user) {
           setTimeout(() => {
             fetchProfile(session.user.id).then(setProfile);
@@ -79,7 +79,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -96,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (
     email: string, 
     password: string, 
-    metadata: { name: string; phone: string; crm: string }
+    metadata: { name: string; phone: string; crm: string; uf: string }
   ) => {
     const redirectUrl = `${window.location.origin}/`;
     
@@ -105,15 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: metadata
+        data: metadata // O gatilho SQL lerá estes dados do raw_user_meta_data
       }
     });
 
-    if (error) {
-      return { error };
-    }
-
-    return { error: null };
+    return { error: error || null };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -122,11 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
 
-    if (error) {
-      return { error };
-    }
-
-    return { error: null };
+    return { error: error || null };
   };
 
   const signOut = async () => {

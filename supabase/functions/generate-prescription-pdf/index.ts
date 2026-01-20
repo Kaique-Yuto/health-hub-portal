@@ -81,140 +81,55 @@ function generatePDFContent(data: PrescriptionData): string {
     `
     : '';
 
-  const html = `
+  return `
     <!DOCTYPE html>
-    <html>
+    <html lang="pt-BR">
     <head>
       <meta charset="UTF-8">
       <style>
-        @page {
-          size: A4;
-          margin: 20mm;
-        }
-        body {
-          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-          color: #1f2937;
-          line-height: 1.6;
-          margin: 0;
-          padding: 40px;
-        }
+        @page { size: A4; margin: 20mm; }
+        body { font-family: sans-serif; color: #1f2937; line-height: 1.6; padding: 20px; }
+        @media print { .no-print { display: none; } }
       </style>
     </head>
     <body>
       ${doctorInfo}
-      
       <div style="text-align: center; margin-bottom: 30px;">
-        <h2 style="margin: 0; font-size: 20px; color: #374151; text-transform: uppercase; letter-spacing: 2px;">
-          Receita Médica
-        </h2>
+        <h2 style="margin: 0; font-size: 20px; color: #374151; text-transform: uppercase;">Receita Médica</h2>
         <p style="margin: 10px 0; color: #6b7280; font-size: 14px;">${formattedDate}</p>
       </div>
-
       <div style="margin-bottom: 30px; padding: 20px; background: #f0fdfa; border-radius: 8px; border: 1px solid #99f6e4;">
-        <div style="margin-bottom: 15px;">
-          <span style="color: #6b7280; font-size: 14px;">Paciente:</span>
-          <p style="margin: 5px 0; font-size: 18px; font-weight: 600; color: #1f2937;">${data.patientName}</p>
-        </div>
-        <div style="margin-bottom: 15px;">
-          <span style="color: #6b7280; font-size: 14px;">CPF:</span>
-          <p style="margin: 5px 0; font-size: 16px; color: #1f2937;">${formattedCPF}</p>
-        </div>
-        <div>
-          <span style="color: #6b7280; font-size: 14px;">Local de Atendimento:</span>
-          <p style="margin: 5px 0; font-size: 16px; color: #1f2937;">${data.serviceLocation}</p>
-        </div>
+        <p><strong>Paciente:</strong> ${data.patientName}</p>
+        <p><strong>CPF:</strong> ${formattedCPF}</p>
+        <p><strong>Local:</strong> ${data.serviceLocation}</p>
       </div>
-
-      <h3 style="margin: 0 0 20px 0; font-size: 16px; color: #374151; border-bottom: 2px solid #0d9488; padding-bottom: 10px;">
-        Prescrição
-      </h3>
-
+      <h3 style="border-bottom: 2px solid #0d9488; padding-bottom: 10px;">Prescrição</h3>
       ${medicationsHtml}
-
-      <div style="margin-top: 60px; text-align: center;">
-        <div style="display: inline-block; border-top: 1px solid #1f2937; padding-top: 10px; min-width: 300px;">
-          <p style="margin: 0; font-weight: 600; color: #1f2937;">
-            ${data.doctor ? `Dr(a). ${data.doctor.name}` : 'Assinatura do Médico'}
-          </p>
-          ${data.doctor ? `<p style="margin: 5px 0; color: #6b7280; font-size: 14px;">CRM: ${data.doctor.crm}</p>` : ''}
-        </div>
-      </div>
     </body>
     </html>
   `;
-
-  return html;
-}
-
-// Simple HTML to PDF using a data URL approach (base64 encoded HTML for iframe rendering)
-// For production, you'd want to use a proper PDF generation service
-function htmlToPdfBase64(html: string): string {
-  // Create a simple PDF-like format using HTML
-  // This is a workaround - in production you'd use a service like Puppeteer, PDFKit, or a cloud service
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(html);
-  
-  // Convert to base64
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
     const data: PrescriptionData = await req.json();
-    
-    console.log('Generating prescription PDF for patient:', data.patientName);
 
-    // Validate required fields
-    if (!data.patientName || !data.patientCPF || !data.serviceLocation) {
-      throw new Error('Campos obrigatórios não preenchidos');
+    if (!data.patientName || !data.patientCPF) {
+      return new Response(JSON.stringify({ error: 'Dados insuficientes' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    if (!data.medications || data.medications.length === 0) {
-      throw new Error('Pelo menos um medicamento é necessário');
-    }
-
-    // Generate HTML content
     const htmlContent = generatePDFContent(data);
-    
-    // For now, we'll return the HTML as base64 that can be rendered in an iframe
-    // The client can print this to PDF using the browser's print functionality
-    const base64Html = htmlToPdfBase64(htmlContent);
 
-    console.log('PDF generated successfully');
-
-    return new Response(
-      JSON.stringify({ 
-        pdf: base64Html,
-        contentType: 'text/html',
-        message: 'Para salvar como PDF, use Ctrl+P (ou Cmd+P no Mac) na visualização e selecione "Salvar como PDF"'
-      }),
-      {
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        },
-      }
-    );
+    // Retorna o HTML diretamente como binário para o blob do frontend
+    return new Response(htmlContent, {
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'text/html; charset=utf-8' 
+      },
+    });
   } catch (error) {
-    console.error('Error generating PDF:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Erro ao gerar PDF' 
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
