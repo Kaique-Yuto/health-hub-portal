@@ -10,14 +10,13 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
-  name: "",
-  email: "",
-  phone: "",
-  crm: "",
-  uf: "", // Novo campo
-  password: "",
-  confirmPassword: "",
-});
+    name: "",
+    email: "",
+    phone: "",
+    crm: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -76,8 +75,7 @@ export default function Register() {
       name: formData.name,
       phone: formData.phone,
       crm: formData.crm,
-      uf: formData.uf
-  });
+    });
 
     if (error) {
       if (error.message.includes("User already registered")) {
@@ -178,31 +176,31 @@ export default function Register() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="crm">CRM *</Label>
-                <Input
-                  id="crm"
-                  name="crm"
-                  type="text"
-                  placeholder="123456"
-                  value={formData.crm}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="crm">CRM *</Label>
+              <Input
+                id="crm"
+                name="crm"
+                type="text"
+                placeholder="12345-SP"
+                value={formData.crm}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="uf">UF *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Telefone</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="uf"
-                  name="uf"
-                  type="text"
-                  placeholder="SP"
-                  maxLength={2}
-                  value={formData.uf}
-                  onChange={(e) => setFormData(prev => ({ ...prev, uf: e.target.value.toUpperCase() }))}
-                  required
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  placeholder="(11) 99999-9999"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="pl-10"
                 />
               </div>
             </div>
